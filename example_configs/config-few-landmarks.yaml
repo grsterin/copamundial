@@ -1,0 +1,77 @@
+defaults:
+  - _self_
+  - override hydra/sweeper: optuna 
+  - override hydra/sweeper/sampler: grid
+  - override hydra/launcher: submitit_slurm
+
+# Running number of landmarks = 5
+
+hydra:
+  launcher:
+    _target_: hydra_plugins.hydra_submitit_launcher.submitit_launcher.SlurmLauncher
+    timeout_min: 120 # 2 hours
+    tasks_per_node: 2
+    cpus_per_task: 1
+    nodes: 10
+    name: ${hydra.job.name}
+    partition: common
+    mem_gb: 32
+    # gres: gpu:1
+  sweeper:
+    sampler:
+      _target_: optuna.samplers.GridSampler
+    direction: maximize
+    storage: sqlite:///5_landmarks_only.db
+    study_name: 5_landmarks_only
+    n_trials: 18
+    n_jobs: 18 # specifies how many jobs do you want to run parallelly
+    params:
+      speciesA: choice("mouse","rat","fly")
+      speciesB: choice("human","bakers")
+      go: choice("molecular_function", "biological_process", "cellular_component")
+
+# specify folders
+netfolder: data/intact
+tempfolder: temp
+gofolder: data/go
+outbase: temp/outputs
+
+ # specify the species
+speciesA: mouse
+speciesB: human
+
+
+ppiAfile: ${.netfolder}/${.speciesA}.s.tsv
+ppiBfile: ${.netfolder}/${.speciesA}.s.tsv
+dsdAfile: ${.tempfolder}/${.speciesA}_dsd.np
+dsdBfile: ${.tempfolder}/${.speciesB}_dsd.np
+svdAfile: ${.tempfolder}/${.speciesA}_svd.np
+svdBfile: ${.tempfolder}/${.speciesA}_svd.np
+goAfile: ${.gofolder}/${.speciesA}.output.mapping.gaf
+goBfile: ${.gofolder}/${.speciesA}.output.mapping.gaf
+matchfile: ${.netfolder}/${.speciesA}-${.speciesB}.tsv
+
+# other parameters
+lr: 1e-3
+no_epoch: 100
+svd_r: 1000
+isorank_alpha: 0.7
+no_landmarks: 5
+dsd_threshold: 10
+munk_only: false
+kA: 15
+kB: 10
+wB: 0.66
+compute_isorank: true
+weight_decay: 1e-9
+score_dsd: true
+go: biological_process
+metric: aupr        # Possible options: aupr, auc, f1max, top-1-acc, top-5-acc
+
+# outputs
+outfolder: ${.outbase}/${.speciesA}_${.speciesB}_lr_${.lr}_ep_${.no_epoch}_svdr_${.svd_r}_nL_${.no_landmarks}_dthres_${.dsd_threshold}_ialpha_${.isorank_alpha}_wB_${.wB}
+isorankfile: ${.outfolder}/isorank.tsv
+modelfile: ${.outfolder}/model.sav
+svd_dist_a_b: ${.outfolder}/transformed_emb.np
+compute_go_eval: true
+output_eval_file: ${.outfolder}/out.tsv
