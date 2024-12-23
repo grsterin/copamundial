@@ -92,10 +92,10 @@ class AttentionModel2(nn.Module):
         return self.proj2(self.act(out))
     
             
-class AttentionModel3(nn.Module):
+class SpeciesTranslationModel(nn.Module):
     def __init__(self, dims = [256, 128, 64], activation = nn.Tanh, nhead = 4,
                 num_layers = 3, svd_dim=200, **kwargs):
-        super(AttentionModel3, self).__init__()
+        super(SpeciesTranslationModel, self).__init__()
         
         mods = []
         prev_dim = svd_dim
