@@ -85,21 +85,36 @@ def predict_dsd(D_mat, train_go_maps, k = 10):
 
 
 def predict_dsd_mundo(D_mat, D_other_species, train_go_maps, go_other, k = 10, k_other = 20, weight_other = 0.4):
+    """
+    The train_go_maps are the mappings from the protein id to the go labels. 
+    In proteins where predictions are to be made, they are replaced with -1
+    """
+    # identify proteins for prediction
     predprot = [x for x in train_go_maps if train_go_maps[x] == -1]
     D_mat1 = D_mat.copy()
     D_other = D_other_species.copy()
+
+    ## set the diagonals to infinity
     D_mat1[range(len(D_mat)), range(len(D_mat))] = np.inf
+    
+    ## exclude the proteins to be predicted from majority voting by setting them to infinity
     D_mat1[:, predprot] = np.inf
+
+    ## get the nearest source and target proteins
     sortedD = np.argsort(D_mat1, axis = 1)[:, 1: k+1]
     sortedDoth = np.argsort(D_other, axis = 1)[:, 1: k_other+1]
     def vote(neighbors, oth_neighbors,  go_maps):
         gos = {}
         for n in neighbors:
+            if n not in go_maps:
+                continue
             for g in go_maps[n]:
                 if g not in gos:
                     gos[g] = 0
                 gos[g] += 1 
         for n in oth_neighbors:
+            if n not in go_other:
+                continue
             for g in go_other[n]:
                 if g not in gos:
                     gos[g] = 0

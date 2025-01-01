@@ -1,0 +1,2 @@
+[console_scripts]
+copamundial = copamundial.copamundial_main:main

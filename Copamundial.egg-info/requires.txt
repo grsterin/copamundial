@@ -1,0 +1,12 @@
+numpy
+scipy
+pandas
+biopython
+matplotlib
+seaborn
+tqdm
+scikit-learn
+networkx
+glidetools
+torch
+pyyaml

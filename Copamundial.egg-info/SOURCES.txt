@@ -1,0 +1,17 @@
+setup.py
+Copamundial.egg-info/PKG-INFO
+Copamundial.egg-info/SOURCES.txt
+Copamundial.egg-info/dependency_links.txt
+Copamundial.egg-info/entry_points.txt
+Copamundial.egg-info/requires.txt
+Copamundial.egg-info/top_level.txt
+copamundial/__init__.py
+copamundial/copamundial_main.py
+copamundial/data.py
+copamundial/io_utils.py
+copamundial/isorank.py
+copamundial/linalg.py
+copamundial/main_hydra.py
+copamundial/model.py
+copamundial/predict_score.py
+tests/test_duomundo.py

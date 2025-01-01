@@ -1,0 +1,19 @@
+Metadata-Version: 2.1
+Name: Copamundial
+Version: 1.0.0
+Summary: Copamundial - protein function prediction algorithm based on coembedding of PPI networks of multiple species into a single vector space.
+Author: Kapil Devkota, Grigoriy Sterin
+Author-email: kapil.devkota@tufts.edu, gr.sterin@gmail.com
+License: MIT
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: pandas
+Requires-Dist: biopython
+Requires-Dist: matplotlib
+Requires-Dist: seaborn
+Requires-Dist: tqdm
+Requires-Dist: scikit-learn
+Requires-Dist: networkx
+Requires-Dist: glidetools
+Requires-Dist: torch
+Requires-Dist: pyyaml

@@ -23,7 +23,6 @@ from omegaconf import OmegaConf, DictConfig
 import hydra
 import logging
 
-
 def configure_logger(logfile):
     logging.basicConfig(
         level=logging.DEBUG, 
@@ -143,7 +142,7 @@ def compute_dsd_dist(ppifile, dsdfile, dsd_threshold):
                                       target=1)
         ccs = max(nx.connected_components(Gpp), key=len)
         Gpps = Gpp.subgraph(ccs)
-        Asub = nx.to_numpy_array(Gpps)
+        Asub = nx.to_numpy_array(Gpps) # for stability
         protmap = {k: i for i, k in enumerate(list(Gpps.nodes))}
         DSDemb = dsd.compute_dsd_embedding(Asub,
                                            is_normalized=False)
@@ -335,6 +334,10 @@ def get_go_maps(gofile, nmap, gotype):
 
 
 def run_copamundial(config):
+
+    if "seed" in config:
+        np.random.seed(config["seed"])
+        torch.manual_seed(config["seed"])
     DSDA, Aa, nmapA = compute_dsd_dist(config["ppiAfile"], config["dsdAfile"], config["dsd_threshold"])
     DSDB, Ab, nmapB = compute_dsd_dist(config["ppiBfile"], config["dsdBfile"], config["dsd_threshold"])
 
@@ -374,47 +377,53 @@ def run_copamundial(config):
         # Perform evaluations
         kA = config["kA"] 
         kB = config["kB"] 
-        go      = config["go"] 
-        metric  = config["metric"]
+        gos     = [go.strip() for go in config["go"].split(",")] 
+        metrics = [met.strip() for met in config["metric"].split(",")]
         gomapsA = {}
         gomapsB = {}
         return_val = None
-        
-        gomapsA[go], golabelsA = get_go_maps(config["goAfile"], nmapA, go)
-        gomapsB[go], golabelsB = get_go_maps(config["goBfile"], nmapB, go)
-        golabels = golabelsA.union(golabelsB)
-        logging.info(f"GO count: {go} ---- {len(golabels)}")
-        score = get_scoring(metric, golabels)
-        if config["score_dsd"]:
-            settings_dsd = settings + [go, metric, "dsd-knn", kA, -1]
-            scores, _ = compute_metric(dsd_func(DSDA, k=kA), score, list(range(len(nmapA))), gomapsA[go],
-                                        kfold=5)
-            logging.info(f"GO: {go}, DSD, k: {kA}, metric: {metric} ===> {np.average(scores):0.3f} +- {np.std(scores):0.3f}")
-            settings_dsd += [np.average(scores), np.std(scores)]
-            results.append(settings_dsd)
-        if config["munk_only"]:
-            method = "MUNDO"
-        else:
-            method = "copamundial"
-        settings_copamundial = settings + [go, metric, f"{method}-knn-weight-{config['wB']:0.3f}", kA, kB]
-        scores, _ = compute_metric(
-            dsd_func_mundo(DSDA, DISTS, gomapsB[go], k=kA, k_other=kB, weight_other=config["wB"]),
-            score, list(range(len(nmapA))), gomapsA[go], kfold=5, seed=121)
-        settings_copamundial += [np.average(scores), np.std(scores)]
-        logging.info(
-            f"GO: {go}, {method}, kA: {kA}, kB: {kB}, metric: {metric} ===> {np.average(scores):0.3f} +- {np.std(scores):0.3f}")
-        results.append(settings_copamundial)
+
+        for i, go in enumerate(gos):
+            gomapsA[go], golabelsA = get_go_maps(config["goAfile"], nmapA, go)
+            gomapsB[go], golabelsB = get_go_maps(config["goBfile"], nmapB, go)
+            golabels = golabelsA.union(golabelsB)
+            logging.info(f"GO count: {go} ---- {len(golabels)}")
+            for j, metric in enumerate(metrics):
+                score = get_scoring(metric, golabels)
+                if config["score_dsd"]:
+                    settings_dsd = settings + [go, metric, "dsd-knn", kA, -1]
+                    scores, _ = compute_metric(dsd_func(DSDA, k=kA), score, list(range(len(nmapA))), gomapsA[go],
+                                                kfold=5)
+                    logging.info(f"GO: {go}, DSD, k: {kA}, metric: {metric} ===> {np.average(scores):0.3f} +- {np.std(scores):0.3f}")
+                    settings_dsd += [np.average(scores), np.std(scores)]
+                    results.append(settings_dsd)
+                if config["munk_only"]:
+                    method = "MUNDO"
+                else:
+                    method = "copamundial"
+                settings_copamundial = settings + [go, metric, f"{method}-knn-weight-{config['wB']:0.3f}", kA, kB]
+                scores, _ = compute_metric(
+                    dsd_func_mundo(DSDA, DISTS, gomapsB[go], k=kA, k_other=kB, weight_other=config["wB"]),
+                    score, list(range(len(nmapA))), gomapsA[go], kfold=5, seed=121)
+                settings_copamundial += [np.average(scores), np.std(scores)]
+                logging.info(
+                    f"GO: {go}, {method}, kA: {kA}, kB: {kB}, metric: {metric} ===> {np.average(scores):0.3f} +- {np.std(scores):0.3f}")
+                results.append(settings_copamundial)
+                if i == 0 and j == 0:
+                    ## the first metric and the first go entry is the one that we show.
+                    scores_to_show = np.average(scores)
+
         columns = ["Species A", "Species B", "SVD embedding", "Landmark no", "GO type", "Scoring metric",
                    "Prediction method",
                    "kA", "kB", "Average score", "Standard deviation"]
         resultsdf = pd.DataFrame(results, columns=columns)
         resultsdf.to_csv(config["output_eval_file"], sep="\t", index=None, mode="a",
                          header=not os.path.exists(config["output_eval_file"]))
-        return np.average(scores)
+        return scores_to_show
     return
 
 
-@hydra.main(version_base = None, config_name = "config", config_path = "configs/")
+@hydra.main(version_base = "1.3", config_name = "config", config_path = "configs/")
 def main(cfg : DictConfig):
     cfg = OmegaConf.to_container(cfg, resolve = True)
     os.makedirs(cfg["outfolder"], exist_ok = True)
